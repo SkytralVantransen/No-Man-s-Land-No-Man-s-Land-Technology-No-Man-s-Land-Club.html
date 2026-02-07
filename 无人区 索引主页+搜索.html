@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无人区·无人区科技·无人区俱乐部 | 集成搜索引擎</title>
+    <style>
+        /* ========== 基础重置 ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* ========== 黑客帝国基调变量 ========== */
+        :root {
+            --matrix: #00ff41;
+            --matrix-dim: #00cc33;
+            --bg: #000;
+            --glass: rgba(0, 255, 65, 0.08);
+            --panel: rgba(0, 20, 0, 0.85);
+            --panel-hover: rgba(0, 30, 0, 0.9);
+        }
+        
+        /* ========== 全局样式 ========== */
+        body {
+            font-family: 'Courier New', Consolas, monospace;
+            line-height: 1.6;
+            color: var(--matrix);
+            background-color: var(--bg);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* ========== 数字雨背景 ========== */
+        #matrix-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        /* ========== 容器样式 ========== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(0, 10, 0, 0.85);
+            border-radius: 0;
+            border: 1px solid var(--matrix);
+            box-shadow: 
+                0 0 20px rgba(0, 255, 65, 0.5),
+                inset 0 0 30px rgba(0, 30, 0, 0.8);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* 绿色扫描线效果 */
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15) 0px,
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        /* ========== 页眉样式 ========== */
+        .header {
+            background: rgba(0, 20, 0, 0.9);
+            color: var(--matrix);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 1px solid var(--matrix);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(0, 255, 65, 0.05) 50%,
+                transparent 100%
+            );
+            animation: scanline 8s linear infinite;
+        }
+        
+        @keyframes scanline {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 
+                0 0 10px var(--matrix),
+                0 0 20px var(--matrix);
+            font-weight: 700;
+        }
+        
+        .version {
+            font-size: 0.9em;
+            opacity: 0.7;
+            position: relative;
+            z-index: 1;
+            color: var(--matrix-dim);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--matrix-dim);
+            padding: 5px 10px;
+            display: inline-block;
+            margin-top: 10px;
+            background: rgba(0, 20, 0, 0.5);
+        }
+        
+        /* ========== 导航栏样式 ========== */
+        .nav-tabs {
+            display: flex;
+            background: rgba(0, 15, 0, 0.9);
+            border-bottom: 1px solid var(--matrix);
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-right: 1px solid rgba(0, 255, 65, 0.1);
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .nav-tab:last-child {
+            border-right: none;
+        }
+        
+        .nav-tab:hover {
+            background: rgba(0, 30, 0, 0.9);
+            color: white;
+            text-shadow: 0 0 8px var(--matrix);
+        }
+        
+        .nav-tab.active {
+            background: rgba(0, 40, 0, 0.9);
+            color: white;
+            box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.3);
+            border-bottom: 2px solid var(--matrix);
+        }
+        
+        /* ========== 内容区域样式 ========== */
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* ========== 网站与项目样式 ========== */
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: var(--panel);
+            border-radius: 0;
+            border-left: 5px solid var(--matrix);
+            transition: all 0.3s ease;
+            border: 1px solid #003300;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.8);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 10px 30px rgba(0, 255, 65, 0.3),
+                inset 0 0 20px rgba(0, 30, 0, 0.8);
+            background: var(--panel-hover);
+            border-color: var(--matrix);
+        }
+        
+        .section h2 {
+            color: var(--matrix);
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-shadow: 0 0 5px var(--matrix);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        .section h2::before {
+            content: '>_';
+            color: var(--matrix);
+            font-size: 1em;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .link-item {
+            background: rgba(0, 20, 0, 0.6);
+            padding: 15px;
+            border-radius: 0;
+            transition: all 0.3s ease;
+            border: 1px solid #003300;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            font-family: 'Courier New', monospace;
+            position: relative;
+        }
+        
+        .link-item:hover {
+            background: rgba(0, 30, 0, 0.8);
+            transform: translateX(5px);
+            box-shadow: 
+                0 6px 15px rgba(0, 255, 65, 0.4),
+                inset 0 0 10px rgba(0, 40, 0, 0.8);
+            border-color: var(--matrix);
+        }
+        
+        .link-item strong {
+            color: var(--matrix-dim);
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        
+        .link-item a {
+            color: var(--matrix);
+            text-decoration: none;
+            font-weight: 500;
+            display: block;
+            word-break: break-all;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .link-item a:hover {
+            color: #ffffff;
+            text-shadow: 0 0 8px var(--matrix);
+        }
+        
+        /* ========== 搜索引擎样式 ========== */
+        .search-engine-container {
+            padding: 20px;
+            background: rgba(0, 15, 0, 0.7);
+            border-radius: 4px;
+            border: 1px solid var(--matrix);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+            margin-bottom: 30px;
+        }
+        
+        .search-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .search-info {
+            font-size: 0.9em;
+            color: var(--matrix-dim);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .search-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .search-box {
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        .search-box h3 {
+            font-size: 2rem;
+            margin: 0 0 1.2rem;
+            font-weight: 300;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            text-shadow: 0 0 6px var(--matrix);
+        }
+        
+        .search-form {
+            display: flex;
+            height: 48px;
+            border: 1px solid var(--matrix);
+            box-shadow: 0 0 10px var(--matrix);
+            background: var(--glass);
+            border-radius: 4px;
+            overflow: hidden;
+            backdrop-filter: blur(4px);
+            margin-bottom: 10px;
+        }
+        
+        .search-form select {
+            flex: 0 0 90px;
+            border: none;
+            background: transparent;
+            color: var(--matrix);
+            padding: 0 8px;
+            font-size: 0.9rem;
+            outline: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="12" height="8"%3E%3Cpath fill="%2300ff41" d="M6 8L0 0h12z"/%3E%3C/svg%3E');
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 0.6rem;
+            cursor: pointer;
+        }
+        
+        .search-form input {
+            flex: 1 1 0;
+            border: none;
+            background: transparent;
+            color: var(--matrix);
+            padding: 0 1rem;
+            font-size: 1rem;
+            outline: none;
+        }
+        
+        .search-form input::placeholder {
+            color: var(--matrix);
+            opacity: 0.6;
+        }
+        
+        .search-form button {
+            flex: 0 0 48px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .search-form button svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--matrix);
+        }
+        
+        #histList {
+            width: 100%;
+            margin: 8px 0;
+            background: var(--glass);
+            border: 1px solid var(--matrix);
+            border-radius: 4px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+        
+        #histList.show {
+            max-height: 280px;
+        }
+        
+        #histList .item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+        }
+        
+        #histList .item:hover {
+            background: rgba(0, 255, 65, 0.15);
+        }
+        
+        #histList .item .txt {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+        }
+        
+        #histList .item .del {
+            flex: 0 0 auto;
+            margin-left: 8px;
+            color: #999;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255, 0, 0, 0.2);
+        }
+        
+        #histList .item .del:hover {
+            background: rgba(255, 0, 0, 0.4);
+        }
+        
+        .quick-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .quick-link {
+            padding: 8px 15px;
+            background: rgba(0, 20, 0, 0.6);
+            border: 1px solid var(--matrix-dim);
+            border-radius: 4px;
+            color: var(--matrix);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .quick-link:hover {
+            background: rgba(0, 30, 0, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 255, 65, 0.3);
+        }
+        
+        /* ========== 联系方式样式 ========== */
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .contact-item {
+            background: rgba(0, 20, 0, 0.6);
+            padding: 20px;
+            border-radius: 0;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid #003300;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            font-family: 'Courier New', monospace;
+        }
+        
+        .contact-item:hover {
+            transform: scale(1.03);
+            background: rgba(0, 30, 0, 0.8);
+            box-shadow: 
+                0 6px 15px rgba(0, 255, 65, 0.4),
+                inset 0 0 10px rgba(0, 40, 0, 0.8);
+            border-color: var(--matrix);
+        }
+        
+        .contact-item .label {
+            font-weight: bold;
+            color: var(--matrix-dim);
+            margin-bottom: 5px;
+            text-shadow: 0 0 3px var(--matrix-dim);
+            font-size: 1.1em;
+            letter-spacing: 1px;
+        }
+        
+        /* ========== 页脚样式 ========== */
+        .footer {
+            background: rgba(0, 10, 0, 0.9);
+            color: var(--matrix-dim);
+            text-align: center;
+            padding: 30px;
+            font-size: 0.9em;
+            border-top: 1px solid var(--matrix);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .footer p {
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px var(--matrix-dim);
+        }
+        
+        /* ========== 动画效果 ========== */
+        .logo-animation {
+            display: inline-block;
+            animation: glitch 3s infinite;
+            position: relative;
+        }
+        
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+                text-shadow: 0 0 10px var(--matrix);
+            }
+            1% {
+                transform: translate(-1px, 1px);
+                text-shadow: 0 0 15px var(--matrix);
+            }
+            2% {
+                transform: translate(1px, -1px);
+                text-shadow: 0 0 20px var(--matrix);
+            }
+            3% {
+                transform: translate(0);
+                text-shadow: 0 0 10px var(--matrix);
+            }
+            100% {
+                transform: translate(0);
+                text-shadow: 0 0 10px var(--matrix);
+            }
+        }
+        
+        /* 终端光标效果 */
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 1.2em;
+            background-color: var(--matrix);
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        /* ========== 响应式设计 ========== */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .section {
+                padding: 15px;
+            }
+            
+            .links-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-tab {
+                padding: 12px 10px;
+                font-size: 0.9em;
+            }
+            
+            .search-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .search-box h3 {
+                font-size: 1.5rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 25px 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 数字雨Canvas -->
+    <canvas id="matrix-rain"></canvas>
+    
+    <div class="container">
+        <div class="header">
+            <h1><span class="logo-animation">无人区·无人区科技·无人区俱乐部</span><span class="cursor"></span></h1>
+            <div class="version">集成搜索引擎版 【版本号：wrq.2.0.0】</div>
+        </div>
+        
+        <!-- 导航栏 -->
+        <div class="nav-tabs">
+            <div class="nav-tab active" data-tab="info">网站与项目</div>
+            <div class="nav-tab" data-tab="search">搜索引擎</div>
+            <div class="nav-tab" data-tab="contact">联系方式</div>
+        </div>
+        
+        <div class="content">
+            <!-- 网站与项目标签页 -->
+            <div id="info-tab" class="tab-content active">
+                <div class="section">
+                    <h2>网站与项目</h2>
+                    <div class="links-grid">
+                        <div class="link-item">
+                            <strong>发布页网址</strong>
+                            <a href="https://tunhs.mysxl.cn/" target="_blank">https://tunhs.mysxl.cn/</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>官方网站及个人博客网址</strong>
+                            <a href="https://theuniversalnhs.mysxl.cn/" target="_blank">https://theuniversalnhs.mysxl.cn/</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>天卓宝盒（Brand new link）网址</strong>
+                            <a href="https://open.vlinkx.cn/%E5%A4%A9%E5%8D%93%E5%B3%B0%E4%BC%9A" target="_blank">https://open.vlinkx.cn/天卓峰会</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>CSDN博客网址</strong>
+                            <a href="https://blog.csdn.net/2503_90553990?type=lately" target="_blank">https://blog.csdn.net/2503_90553990?type=lately</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>官方哔哩哔哩网址</strong>
+                            <a href="https://space.bilibili.com/3546852389554232" target="_blank">https://space.bilibili.com/3546852389554232</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>官方5Z5D上网主页网址</strong>
+                            <a href="http://tunhs.5z5d.com/" target="_blank">http://tunhs.5z5d.com/</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>官方博客园网址</strong>
+                            <a href="https://www.cnblogs.com/tunhs" target="_blank">https://www.cnblogs.com/tunhs</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>Moon ISO文件集合站网址</strong>
+                            <a href="https://open.vlinkx.cn/win7win10win11" target="_blank">https://open.vlinkx.cn/win7win10win11</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>Skytrail ISO 天卓峰会镜像馆网址</strong>
+                            <a href="https://open.vlinkx.cn/skytraliso" target="_blank">https://open.vlinkx.cn/skytraliso</a>
+                        </div>
+                        <div class="link-item">
+                            <strong>svdownload直链下载网址</strong>
+                            <a href="https://open.vlinkx.cn/svdownload" target="_blank">https://open.vlinkx.cn/svdownload</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 搜索引擎标签页 -->
+            <div id="search-tab" class="tab-content">
+                <div class="search-engine-container">
+                    <div class="search-header">
+                        <div class="search-info">
+                            <div id="runTime">站点运行时间：计算中…</div>
+                            <div id="curTime">当前时间：加载中…</div>
+                            <div id="ip">IP 地址：获取中…</div>
+                        </div>
+                        
+                        <div class="quick-links">
+                            <a href="https://www.bilibili.com" target="_blank" class="quick-link">哔哩哔哩</a>
+                            <a href="https://www.youtube.com" target="_blank" class="quick-link">油管</a>
+                            <a href="https://music.163.com" target="_blank" class="quick-link">网易云音乐</a>
+                            <a href="https://www.4399.com" target="_blank" class="quick-link">4399游戏</a>
+                            <a href="https://github.com" target="_blank" class="quick-link">GitHub</a>
+                        </div>
+                    </div>
+                    
+                    <div class="search-wrapper">
+                        <div class="search-box">
+                            <h3 id="clock" title="时间">--:--</h3>
+                            
+                            <form id="searchForm" class="search-form" onsubmit="doSearch();return false">
+                                <select id="engineSelect" aria-label="搜索引擎">
+                                    <option value="bing" data-url="https://www.bing.com/search?q=">必应</option>
+                                    <option value="google" data-url="https://www.google.com/search?q=">谷歌</option>
+                                    <option value="360" data-url="https://www.so.com/s?q=">360</option>
+                                    <option value="sogou" data-url="https://www.sogou.com/web?query=">搜狗</option>
+                                    <option value="baidu" data-url="https://www.baidu.com/s?word=">百度</option>
+                                </select>
+                                <input type="text" name="q" placeholder="输入指令…" required>
+                                <button type="submit">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                                    </svg>
+                                </button>
+                            </form>
+                            
+                            <div id="histList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 联系方式标签页 -->
+            <div id="contact-tab" class="tab-content">
+                <div class="section">
+                    <h2>联系方式</h2>
+                    <div class="contact-grid">
+                        <div class="contact-item">
+                            <div class="label">电话</div>
+                            <div>13012703627</div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="label">微信</div>
+                            <div>13012703627</div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="label">QQ</div>
+                            <div>2067182088</div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="label">邮箱①</div>
+                            <div>zi20110220zi@yeah.net</div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="label">邮箱②</div>
+                            <div>unhs@foxmail.com</div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="label">创作者</div>
+                            <div>𝓢𝓴𝔂𝓽𝓻𝓪𝓵 𝓥𝓪𝓷𝓽𝓻𝓪𝓷𝓼𝓮𝓷</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section story-section">
+                    <h3>关于无人区</h3>
+                    <p>欢迎来到<span class="highlight">无人区科技/俱乐部</span>！我们是一个致力于技术探索与创新的社区，专注于软件开发、网络安全、系统优化和数字工具分享。</p>
+                    <p>在这里，你可以找到各种实用工具、学习资源和技术教程。我们的使命是构建一个开放、自由、共享的技术交流平台。</p>
+                    <p>无论你是技术新手还是资深专家，都能在这里找到有价值的内容和志同道合的伙伴。</p>
+                    <p><span class="highlight">探索无限可能，创造数字未来！</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© 2023-2025 无人区科技/俱乐部 版权所有</p>
+            <p>技术驱动未来 · 代码改变世界</p>
+            <p>版本：wrq.2.0.0 | 最后更新：2025年1月</p>
+        </div>
+    </div>
+
+    <script>
+        // ========== 字符雨效果 ==========
+        const canvas = document.getElementById('matrix-rain');
+        const ctx = canvas.getContext('2d');
+        
+        // 设置canvas尺寸为窗口大小
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // 字符集 - 黑客帝国风格字符
+        const matrixChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$+-*/=%\"'#&_(),.;:?!\\|{}<>[]^~`";
+        const charsArray = matrixChars.split('');
+        
+        // 列数和每列字符位置
+        const fontSize = 14;
+        const columns = Math.floor(canvas.width / fontSize);
+        const drops = Array(columns).fill(1);
+        
+        // 绘制字符雨
+        function drawMatrixRain() {
+            // 半透明黑色背景，产生拖尾效果
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#00ff41';
+            ctx.font = `${fontSize}px 'Courier New', monospace`;
+            
+            // 绘制每个字符
+            for (let i = 0; i < drops.length; i++) {
+                // 随机选择字符
+                const char = charsArray[Math.floor(Math.random() * charsArray.length)];
+                
+                // 绘制字符
+                ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+                
+                // 随机重置字符位置
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                
+                // 移动字符位置
+                drops[i]++;
+            }
+        }
+        
+        // 调整canvas大小以适应窗口变化
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // 重新计算列数
+            columns = Math.floor(canvas.width / fontSize);
+            drops.length = columns;
+            drops.fill(1);
+        });
+        
+        // 开始字符雨动画
+        setInterval(drawMatrixRain, 35);
+        
+        // ========== 标签页切换功能 ==========
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 移除所有标签的active类
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // 为当前标签添加active类
+                this.classList.add('active');
+                
+                // 显示对应的内容
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                
+                // 如果是搜索引擎标签，聚焦到搜索框
+                if (tabId === 'search') {
+                    setTimeout(() => {
+                        document.querySelector('input[name="q"]').focus();
+                    }, 300);
+                }
+            });
+        });
+        
+        // ========== 站点信息功能 ==========
+        const startTime = new Date('2025/01/01 00:00:00').getTime();
+        const runEl = document.getElementById('runTime');
+        const timeEl = document.getElementById('curTime');
+        const ipEl = document.getElementById('ip');
+        
+        // 格式化时间间隔
+        function fmtDuration(ms) {
+            const d = Math.floor(ms / 86400000);
+            const h = Math.floor(ms % 86400000 / 3600000);
+            const m = Math.floor(ms % 3600000 / 60000);
+            const s = Math.floor(ms % 60000 / 1000);
+            return `${d}天 ${h}时 ${m}分 ${s}秒`;
+        }
+        
+        // 更新运行时间
+        function updateRun() {
+            runEl.textContent = '站点运行时间：' + fmtDuration(Date.now() - startTime);
+        }
+        
+        // 更新当前时间
+        function updateCur() {
+            timeEl.textContent = '当前时间：' + new Date().toLocaleString('zh-CN', {hour12: false});
+        }
+        
+        // 获取IP地址
+        function getIP() {
+            fetch('https://api.ipify.org?format=json')
+                .then(response => response.json())
+                .then(data => {
+                    ipEl.textContent = 'IP地址：' + data.ip;
+                })
+                .catch(() => {
+                    // 如果主API失败，尝试备用API
+                    fetch('https://ipapi.co/json/')
+                        .then(response => response.json())
+                        .then(data => {
+                            ipEl.textContent = 'IP地址：' + data.ip;
+                        })
+                        .catch(() => {
+                            ipEl.textContent = 'IP地址：获取失败';
+                        });
+                });
+        }
+        
+        // 初始化站点信息
+        updateRun();
+        updateCur();
+        getIP();
+        
+        // 设置定时器
+        setInterval(updateRun, 1000);
+        setInterval(updateCur, 1000);
+        
+        // ========== 时钟功能 ==========
+        const clock = document.getElementById('clock');
+        const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        let baseText = '--:--';
+        
+        function updateBase() {
+            const now = new Date();
+            baseText = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            if (!clock.matches(':hover')) clock.textContent = baseText;
+        }
+        
+        updateBase();
+        setInterval(updateBase, 500);
+        
+        if (matchMedia('(hover:hover)').matches) {
+            clock.addEventListener('mouseenter', () => {
+                const n = new Date();
+                clock.textContent = `${n.getFullYear()}/${String(n.getMonth() + 1).padStart(2, '0')}/${String(n.getDate()).padStart(2, '0')} ${week[n.getDay()]}`;
+            });
+            
+            clock.addEventListener('mouseleave', () => clock.textContent = baseText);
+        }
+        
+        // ========== 搜索功能 ==========
+        const MAX_HIST = 5;
+        const histKey = 'searchHist';
+        const input = document.querySelector('input[name="q"]');
+        const histList = document.getElementById('histList');
+        let histData = JSON.parse(localStorage.getItem(histKey) || '[]');
+        
+        const engineName = {
+            bing: '必应',
+            google: '谷歌',
+            '360': '360',
+            sogou: '搜狗',
+            baidu: '百度'
+        };
+        
+        // 转义HTML字符
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+        
+        // 保存搜索历史到本地存储
+        function saveHist() {
+            localStorage.setItem(histKey, JSON.stringify(histData));
+        }
+        
+        // 渲染搜索历史
+        function renderHist() {
+            const kw = input.value.trim().toLowerCase();
+            const filtered = kw ? histData.filter(h => h.query.toLowerCase().includes(kw)) : histData;
+            
+            if (!filtered.length) {
+                histList.classList.remove('show');
+                return;
+            }
+            
+            histList.innerHTML = filtered.map((h, i) => `
+                <div class="item" data-index="${i}">
+                    <span class="txt">${escapeHtml(engineName[h.engine])}：${escapeHtml(h.query)}</span>
+                    <span class="del">删除</span>
+                </div>
+            `).join('');
+            
+            histList.classList.add('show');
+        }
+        
+        // 添加搜索历史
+        function addHist(query, engine) {
+            histData = histData.filter(h => !(h.query === query && h.engine === engine));
+            histData.unshift({query, engine});
+            
+            if (histData.length > MAX_HIST) {
+                histData = histData.slice(0, MAX_HIST);
+            }
+            
+            saveHist();
+        }
+        
+        // 输入框事件
+        input.addEventListener('focus', renderHist);
+        input.addEventListener('input', renderHist);
+        
+        // 搜索历史列表事件
+        histList.addEventListener('click', e => {
+            const item = e.target.closest('.item');
+            if (!item) return;
+            
+            if (e.target.classList.contains('del')) {
+                const i = Number(item.dataset.index);
+                histData.splice(i, 1);
+                saveHist();
+                renderHist();
+                
+                if (!histData.length) histList.classList.remove('show');
+                return;
+            }
+            
+            const h = histData[Number(item.dataset.index)];
+            input.value = h.query;
+            document.getElementById('engineSelect').value = h.engine;
+            histList.classList.remove('show');
+            input.focus();
+        });
+        
+        // 点击页面其他区域关闭搜索历史
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.search-box')) {
+                histList.classList.remove('show');
+            }
+        });
+        
+        // 搜索引擎选择
+        const select = document.getElementById('engineSelect');
+        const saved = localStorage.getItem('lastEngine');
+        if (saved) select.value = saved;
+        
+        // 执行搜索
+        function doSearch() {
+            const opt = select.selectedOptions[0];
+            const query = input.value.trim();
+            
+            if (!query) {
+                input.focus();
+                return;
+            }
+            
+            addHist(query, select.value);
+            
+            const url = opt.dataset.url + encodeURIComponent(query);
+            localStorage.setItem('lastEngine', select.value);
+            
+            // 在新标签页打开搜索结果
+            window.open(url, '_blank');
+            
+            // 清空输入框
+            input.value = '';
+            histList.classList.remove('show');
+        }
+        
+        // 为搜索表单添加键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+K 或 / 聚焦到搜索框
+            if ((e.ctrlKey && e.key === 'k') || e.key === '/') {
+                e.preventDefault();
+                // 切换到搜索引擎标签页
+                document.querySelector('.nav-tab[data-tab="search"]').click();
+                input.focus();
+            }
+            
+            // ESC 键关闭搜索历史
+            if (e.key === 'Escape') {
+                histList.classList.remove('show');
+            }
+        });
+        
+        // ========== 页面初始化 ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            // 默认显示第一个标签页
+            renderHist();
+            
+            // 为链接添加点击动画
+            document.querySelectorAll('.link-item a').forEach(link => {
+                link.addEventListener('click', function() {
+                    this.style.animation = 'none';
+                    setTimeout(() => {
+                        this.style.animation = '';
+                    }, 10);
+                });
+            });
+            
+            // 控制台欢迎信息
+            console.log('%c 欢迎来到无人区科技/俱乐部！ ', 'background: #000; color: #00ff41; font-size: 16px; padding: 10px; border: 2px solid #00ff41;');
+            console.log('%c 首席执政官：𝓢𝓴𝔂𝓽𝓻𝓪𝓵 𝓥𝓪𝓷𝓽𝓻𝓪𝓷𝓼𝓮𝓷 ', 'color: #00cc33; font-weight: bold;');
+        });
+    </script>
+</body>
+</html>
